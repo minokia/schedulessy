@@ -1,56 +1,129 @@
+#main
 import streamlit as st
-from openai import OpenAI
 
-# Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
-)
+def main():
+    st.title("Schedule Management App")
+    st.sidebar.title("Navigation")
+    
+    # Sidebar navigation
+    page = st.sidebar.selectbox("Select a page", ["Academic Schedule", "Leisure Schedule"])
+    
+    if page == "Academic Schedule":
+        import sheet.sheet01 as academic
+        academic.academic_schedule()
+    elif page == "Leisure Schedule":
+        import sheet.sheet02 as leisure
+        leisure.leisure_schedule()
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+if __name__ == "__main__":
+    main()
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+#sheet 01
+import streamlit as st
+import plotly.express as px
+import pandas as pd
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Display the existing chat messages via `st.chat_message`.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
-
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
+def academic_schedule():
+    st.title("Academic Schedule")
+    
+    # Placeholder for academic schedule data
+    academic_events = st.session_state.get('academic_events', [])
+    
+    # Add new academic event
+    with st.form(key='academic_form'):
+        subject = st.text_input("Subject")
+        date = st.date_input("Date")
+        time = st.time_input("Time")
+        submit_button = st.form_submit_button(label='Add Schedule')
+        
+        if submit_button and subject:
+            academic_events.append({
+                'subject': subject,
+                'date': date,
+                'time': time
+            })
+            st.session_state.academic_events = academic_events
+            st.success("Schedule added successfully!")
+    
+    # Display academic events
+    if academic_events:
+        st.subheader("Your Academic Schedules")
+        for event in academic_events:
+            st.write(f"{event['subject']} on {event['date']} at {event['time']}")
+        
+        # Convert events to DataFrame for visualization
+        df = pd.DataFrame(academic_events)
+        df['datetime'] = pd.to_datetime(df['date'].astype(str) + ' ' + df['time'].astype(str))
+        
+        # Plot calendar view
+        st.subheader("Academic Schedule Calendar")
+        fig = px.timeline(
+            df,
+            x_start="datetime",
+            x_end="datetime",
+            y="subject",
+            title="Academic Schedule",
+            labels={"datetime": "Date & Time", "subject": "Subject"}
         )
+        fig.update_yaxes(categoryorder="total ascending")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.write("No academic schedules added yet.")
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+if __name__ == "__main__":
+    academic_schedule()
+
+#sheet02
+import streamlit as st
+import plotly.express as px
+import pandas as pd
+
+def leisure_schedule():
+    st.title("Leisure Schedule")
+    
+    # Placeholder for leisure schedule data
+    leisure_events = st.session_state.get('leisure_events', [])
+    
+    # Add new leisure event
+    with st.form(key='leisure_form'):
+        event_name = st.text_input("Event Name")
+        event_date = st.date_input("Event Date")
+        event_time = st.time_input("Event Time")
+        submit_button = st.form_submit_button(label='Add Event')
+        
+        if submit_button and event_name:
+            leisure_events.append({
+                'name': event_name,
+                'date': event_date,
+                'time': event_time
+            })
+            st.session_state.leisure_events = leisure_events
+            st.success("Event added successfully!")
+    
+    # Display leisure events
+    if leisure_events:
+        st.subheader("Your Leisure Events")
+        for event in leisure_events:
+            st.write(f"{event['name']} on {event['date']} at {event['time']}")
+        
+        # Convert events to DataFrame for visualization
+        df = pd.DataFrame(leisure_events)
+        df['datetime'] = pd.to_datetime(df['date'].astype(str) + ' ' + df['time'].astype(str))
+        
+        # Plot calendar view
+        st.subheader("Leisure Schedule Calendar")
+        fig = px.timeline(
+            df,
+            x_start="datetime",
+            x_end="datetime",
+            y="name",
+            title="Leisure Schedule",
+            labels={"datetime": "Date & Time", "name": "Event Name"}
+        )
+        fig.update_yaxes(categoryorder="total ascending")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.write("No leisure events scheduled yet.")
+
+if __name__ == "__main__":
+    leisure_schedule()
